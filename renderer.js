@@ -258,6 +258,7 @@ class EntityManager {
     this.projectManager = projectManager;
     this.canvas = canvasEl;
     this.entities = new Map();
+    this.selectedEntities = new Set();
     this.dragState = {
       isDragging: false,
       entity: null,
@@ -266,7 +267,8 @@ class EntityManager {
       offsetX: 0,
       offsetY: 0,
       currentX: null,
-      currentY: null
+      currentY: null,
+      initialPositions: null
     };
   }
 
@@ -366,15 +368,45 @@ class EntityManager {
   }
 
   startDrag(e, element, imageData) {
-    this.dragState.isDragging = true;
-    this.dragState.entity = element;
-    this.dragState.imageData = imageData;
-    this.dragState.startX = e.clientX;
-    this.dragState.startY = e.clientY;
-    this.dragState.offsetX = imageData.x;
-    this.dragState.offsetY = imageData.y;
+    const isMultiSelect = this.selectedEntities.has(imageData.id);
     
-    element.classList.add('dragging');
+    if (isMultiSelect) {
+      this.dragState.isDragging = true;
+      this.dragState.entity = element;
+      this.dragState.imageData = imageData;
+      this.dragState.startX = e.clientX;
+      this.dragState.startY = e.clientY;
+      this.dragState.currentX = null;
+      this.dragState.currentY = null;
+      
+      this.dragState.initialPositions = {};
+      this.selectedEntities.forEach(id => {
+        const entity = this.entities.get(id);
+        if (entity) {
+          this.dragState.initialPositions[id] = { 
+            x: entity.data.x, 
+            y: entity.data.y 
+          };
+          entity.element.classList.add('dragging');
+        }
+      });
+    } else {
+      this.clearSelection();
+      this.selectEntity(imageData.id);
+      
+      this.dragState.isDragging = true;
+      this.dragState.entity = element;
+      this.dragState.imageData = imageData;
+      this.dragState.startX = e.clientX;
+      this.dragState.startY = e.clientY;
+      this.dragState.offsetX = imageData.x;
+      this.dragState.offsetY = imageData.y;
+      this.dragState.currentX = null;
+      this.dragState.currentY = null;
+      this.dragState.initialPositions = null;
+      
+      element.classList.add('dragging');
+    }
   }
 
   handleDrag(e) {
@@ -383,18 +415,47 @@ class EntityManager {
     const dx = (e.clientX - this.dragState.startX) / this.camera.zoom;
     const dy = (e.clientY - this.dragState.startY) / this.camera.zoom;
 
-    const newX = this.dragState.offsetX + dx;
-    const newY = this.dragState.offsetY + dy;
+    if (this.dragState.initialPositions) {
+      Object.entries(this.dragState.initialPositions).forEach(([id, pos]) => {
+        const entity = this.entities.get(id);
+        if (entity) {
+          const newX = pos.x + dx;
+          const newY = pos.y + dy;
+          entity.element.style.left = `${newX}px`;
+          entity.element.style.top = `${newY}px`;
+        }
+      });
+      this.dragState.currentX = dx;
+      this.dragState.currentY = dy;
+    } else {
+      const newX = this.dragState.offsetX + dx;
+      const newY = this.dragState.offsetY + dy;
 
-    this.dragState.entity.style.left = `${newX}px`;
-    this.dragState.entity.style.top = `${newY}px`;
-    
-    this.dragState.currentX = newX;
-    this.dragState.currentY = newY;
+      this.dragState.entity.style.left = `${newX}px`;
+      this.dragState.entity.style.top = `${newY}px`;
+      
+      this.dragState.currentX = newX;
+      this.dragState.currentY = newY;
+    }
   }
 
   endDrag() {
-    if (this.dragState.entity && this.dragState.currentX !== null) {
+    if (this.dragState.initialPositions) {
+      Object.entries(this.dragState.initialPositions).forEach(([id, pos]) => {
+        const entity = this.entities.get(id);
+        if (entity) {
+          const dx = this.dragState.currentX || 0;
+          const dy = this.dragState.currentY || 0;
+          const newX = pos.x + dx;
+          const newY = pos.y + dy;
+          
+          entity.element.classList.remove('dragging');
+          entity.data.x = newX;
+          entity.data.y = newY;
+          this.projectManager.updateImage(id, { x: newX, y: newY });
+        }
+      });
+    } else if (this.dragState.entity && this.dragState.currentX !== null) {
       const id = this.dragState.entity.dataset.id;
       this.projectManager.updateImage(id, { 
         x: this.dragState.currentX, 
@@ -406,6 +467,7 @@ class EntityManager {
     this.dragState.entity = null;
     this.dragState.currentX = null;
     this.dragState.currentY = null;
+    this.dragState.initialPositions = null;
   }
 
   deleteEntity(id) {
@@ -414,8 +476,14 @@ class EntityManager {
       if (entity._cleanup) entity._cleanup();
       entity.element.remove();
       this.entities.delete(id);
+      this.selectedEntities.delete(id);
       this.projectManager.removeImage(id);
     }
+  }
+
+  deleteSelected() {
+    const idsToDelete = Array.from(this.selectedEntities);
+    idsToDelete.forEach(id => this.deleteEntity(id));
   }
 
   async loadAllImages() {
@@ -455,6 +523,56 @@ class EntityManager {
       element.remove();
     });
     this.entities.clear();
+    this.selectedEntities.clear();
+  }
+
+  selectEntity(id, addToSelection = false) {
+    if (!addToSelection) {
+      this.clearSelection();
+    }
+    
+    const entity = this.entities.get(id);
+    if (entity) {
+      this.selectedEntities.add(id);
+      entity.element.classList.add('selected');
+    }
+  }
+
+  deselectEntity(id) {
+    const entity = this.entities.get(id);
+    if (entity) {
+      this.selectedEntities.delete(id);
+      entity.element.classList.remove('selected');
+    }
+  }
+
+  clearSelection() {
+    this.selectedEntities.forEach(id => {
+      const entity = this.entities.get(id);
+      if (entity) {
+        entity.element.classList.remove('selected');
+      }
+    });
+    this.selectedEntities.clear();
+  }
+
+  getSelectedEntities() {
+    return Array.from(this.selectedEntities).map(id => this.entities.get(id)).filter(Boolean);
+  }
+
+  getSelectedIds() {
+    return Array.from(this.selectedEntities);
+  }
+
+  selectAll() {
+    this.entities.forEach((entity, id) => {
+      this.selectedEntities.add(id);
+      entity.element.classList.add('selected');
+    });
+  }
+
+  hasSelection() {
+    return this.selectedEntities.size > 0;
   }
 
   getEntity(id) {
@@ -482,6 +600,27 @@ class EntityManager {
       img.frameId = null;
       this.projectManager.saveConfig();
     }
+  }
+
+  getEntitiesInRect(rect) {
+    const selected = [];
+    this.entities.forEach((entity, id) => {
+      const x = entity.data.x;
+      const y = entity.data.y;
+      const rectElem = entity.element.getBoundingClientRect();
+      const w = rectElem.width / this.camera.zoom * entity.data.scale;
+      const h = rectElem.height / this.camera.zoom * entity.data.scale;
+
+      const intersects = !(rect.x > x + w || 
+                          rect.x + rect.width < x || 
+                          rect.y > y + h || 
+                          rect.y + rect.height < y);
+
+      if (intersects) {
+        selected.push(id);
+      }
+    });
+    return selected;
   }
 }
 
@@ -877,6 +1016,15 @@ class App {
       spacePressed: false
     };
 
+    this.selectionState = {
+      isSelecting: false,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      rectElement: null
+    };
+
     this.lastWheelTime = 0;
     this.boundHandlers = {
       handleWheel: this.handleWheel.bind(this),
@@ -1155,15 +1303,114 @@ class App {
     if (e.button === 1 || (e.button === 0 && this.panState.spacePressed)) {
       e.preventDefault();
       this.startPan(e);
-    } else if (e.button === 0 && e.target === this.viewport) {
-      this.entityManager.endDrag();
-      this.frameManager.deselectFrame();
+    } else if (e.button === 0) {
+      const targetIsEntity = e.target.classList.contains('canvas-image');
+      const targetIsFrame = e.target.closest('.frame-container');
+      const targetIsCanvas = e.target === this.canvas || 
+                             e.target === this.viewport ||
+                             this.canvas.contains(e.target);
+      
+      if (targetIsCanvas && !targetIsEntity && !targetIsFrame) {
+        this.entityManager.clearSelection();
+        this.entityManager.endDrag();
+        this.frameManager.deselectFrame();
+        this.startSelection(e);
+      }
     }
+  }
+
+  startSelection(e) {
+    const rect = this.viewport.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    this.selectionState.isSelecting = true;
+    this.selectionState.startX = x;
+    this.selectionState.startY = y;
+    this.selectionState.currentX = x;
+    this.selectionState.currentY = y;
+
+    if (!this.selectionState.rectElement) {
+      this.selectionState.rectElement = document.createElement('div');
+      this.selectionState.rectElement.className = 'selection-rect';
+      this.canvas.appendChild(this.selectionState.rectElement);
+    }
+
+    this.selectionState.rectElement.style.left = `${x}px`;
+    this.selectionState.rectElement.style.top = `${y}px`;
+    this.selectionState.rectElement.style.width = '0px';
+    this.selectionState.rectElement.style.height = '0px';
+    this.selectionState.rectElement.style.display = 'block';
+  }
+
+  updateSelection(e) {
+    if (!this.selectionState.isSelecting) return;
+
+    const viewportRect = this.viewport.getBoundingClientRect();
+    const x = e.clientX - viewportRect.left;
+    const y = e.clientY - viewportRect.top;
+
+    this.selectionState.currentX = x;
+    this.selectionState.currentY = y;
+
+    const canvasX = (x - this.camera.cx) / this.camera.zoom;
+    const canvasY = (y - this.camera.cy) / this.camera.zoom;
+    const startCanvasX = (this.selectionState.startX - this.camera.cx) / this.camera.zoom;
+    const startCanvasY = (this.selectionState.startY - this.camera.cy) / this.camera.zoom;
+
+    const left = Math.min(startCanvasX, canvasX);
+    const top = Math.min(startCanvasY, canvasY);
+    const width = Math.abs(canvasX - startCanvasX);
+    const height = Math.abs(canvasY - startCanvasY);
+
+    this.selectionState.rectElement.style.left = `${left}px`;
+    this.selectionState.rectElement.style.top = `${top}px`;
+    this.selectionState.rectElement.style.width = `${width}px`;
+    this.selectionState.rectElement.style.height = `${height}px`;
+  }
+
+  endSelection() {
+    if (!this.selectionState.isSelecting) return;
+
+    this.selectionState.isSelecting = false;
+
+    if (this.selectionState.rectElement) {
+      this.selectionState.rectElement.style.display = 'none';
+    }
+
+    const left = Math.min(this.selectionState.startX, this.selectionState.currentX);
+    const top = Math.min(this.selectionState.startY, this.selectionState.currentY);
+    const width = Math.abs(this.selectionState.currentX - this.selectionState.startX);
+    const height = Math.abs(this.selectionState.currentY - this.selectionState.startY);
+
+    if (width > 5 || height > 5) {
+      const viewportRect = this.viewport.getBoundingClientRect();
+      const selRect = {
+        x: (left - viewportRect.left - this.camera.cx) / this.camera.zoom,
+        y: (top - viewportRect.top - this.camera.cy) / this.camera.zoom,
+        width: width / this.camera.zoom,
+        height: height / this.camera.zoom
+      };
+
+      const selectedIds = this.entityManager.getEntitiesInRect(selRect);
+      
+      if (selectedIds.length > 0) {
+        this.entityManager.clearSelection();
+        selectedIds.forEach(id => this.entityManager.selectEntity(id, true));
+      }
+    }
+  }
+
+  updateSelectionBounds() {
+    // Bounding box removed - selection is now per-object only
+    // Each selected image has its own .selected class with outline
   }
 
   handleMouseMove(e) {
     if (this.panState.isPanning) {
       this.updatePan(e);
+    } else if (this.selectionState.isSelecting) {
+      this.updateSelection(e);
     } else if (this.frameManager.resizeState.isResizing) {
       this.frameManager.handleResize(e);
     } else if (this.frameManager.dragState.isDragging) {
@@ -1176,6 +1423,9 @@ class App {
   handleMouseUp() {
     if (this.panState.isPanning) {
       this.endPan();
+    }
+    if (this.selectionState.isSelecting) {
+      this.endSelection();
     }
     if (this.frameManager.resizeState.isResizing) {
       this.frameManager.endResize();
@@ -1190,15 +1440,25 @@ class App {
     if (e.code === 'Space' && !this.panState.spacePressed) {
       this.panState.spacePressed = true;
       this.viewport.classList.add('pan-mode');
+    } else if (e.code === 'Escape') {
+      this.entityManager.clearSelection();
+      this.frameManager.deselectFrame();
     } else if (e.code === 'Delete' || e.code === 'Backspace') {
-      const draggingEntity = this.entityManager.dragState.entity;
-      if (draggingEntity) {
-        const id = draggingEntity.dataset.id;
-        this.entityManager.deleteEntity(id);
-      } else if (this.frameManager.selectedFrame) {
-        const id = this.frameManager.selectedFrame.dataset.id;
-        this.frameManager.deleteFrame(id);
+      if (this.entityManager.hasSelection()) {
+        this.entityManager.deleteSelected();
+      } else {
+        const draggingEntity = this.entityManager.dragState.entity;
+        if (draggingEntity) {
+          const id = draggingEntity.dataset.id;
+          this.entityManager.deleteEntity(id);
+        } else if (this.frameManager.selectedFrame) {
+          const id = this.frameManager.selectedFrame.dataset.id;
+          this.frameManager.deleteFrame(id);
+        }
       }
+    } else if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      this.entityManager.selectAll();
     } else if (e.code === 'Digit0' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       this.camera.reset();

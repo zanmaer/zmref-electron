@@ -380,3 +380,16 @@ html, body {
 .frame-label:hover {
   background: rgba(255, 255, 255, 0.1);
 }
+
+.selection-rect {
+  position: absolute;
+  border: 1px dashed var(--accent);
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.canvas-image.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
