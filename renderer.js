@@ -622,6 +622,31 @@ class EntityManager {
     });
     return selected;
   }
+
+  getSelectionBoundsForAlignment() {
+    if (this.selectedEntities.size === 0) return null;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    this.selectedEntities.forEach(id => {
+      const entity = this.entities.get(id);
+      if (entity) {
+        const x = entity.data.x;
+        const y = entity.data.y;
+        const naturalWidth = entity.element.naturalWidth || entity.element.offsetWidth;
+        const naturalHeight = entity.element.naturalHeight || entity.element.offsetHeight;
+        const w = naturalWidth * entity.data.scale;
+        const h = naturalHeight * entity.data.scale;
+
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + w);
+        maxY = Math.max(maxY, y + h);
+      }
+    });
+
+    return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
+  }
 }
 
 const FRAME_MIN_SIZE = 100;
@@ -1240,6 +1265,129 @@ class App {
     this.updateCanvasTransform();
   }
 
+  alignSelected(direction) {
+    const entityManager = this.entityManager;
+    const selectedIds = entityManager.getSelectedIds();
+    
+    if (selectedIds.length < 2) return;
+    
+    const bounds = entityManager.getSelectionBoundsForAlignment();
+    if (!bounds) return;
+
+    selectedIds.forEach(id => {
+      const entity = entityManager.getEntity(id);
+      if (!entity) return;
+
+      const x = entity.data.x;
+      const y = entity.data.y;
+      const naturalWidth = entity.element.naturalWidth || entity.element.offsetWidth;
+      const naturalHeight = entity.element.naturalHeight || entity.element.offsetHeight;
+      const w = naturalWidth * entity.data.scale;
+      const h = naturalHeight * entity.data.scale;
+
+      let newX = x;
+      let newY = y;
+
+      if (direction === 'left') {
+        newX = bounds.minX;
+      } else if (direction === 'right') {
+        newX = bounds.maxX - w;
+      } else if (direction === 'top') {
+        newY = bounds.minY;
+      } else if (direction === 'bottom') {
+        newY = bounds.maxY - h;
+      }
+
+      entity.data.x = newX;
+      entity.data.y = newY;
+      entity.element.style.left = `${newX}px`;
+      entity.element.style.top = `${newY}px`;
+      entityManager.projectManager.updateImage(id, { x: newX, y: newY });
+    });
+  }
+
+  distributeHorizontally() {
+    const entityManager = this.entityManager;
+    const selectedIds = entityManager.getSelectedIds();
+    
+    if (selectedIds.length < 2) return;
+    
+    const entities = selectedIds
+      .map(id => entityManager.getEntity(id))
+      .filter(e => e)
+      .map(e => ({
+        id: e.data.id,
+        x: e.data.x,
+        y: e.data.y,
+        width: (e.element.naturalWidth || e.element.offsetWidth) * e.data.scale,
+        height: (e.element.naturalHeight || e.element.offsetHeight) * e.data.scale
+      }));
+
+    if (entities.length < 2) return;
+
+    const minY = Math.min(...entities.map(e => e.y));
+    entities.sort((a, b) => a.x - b.x);
+
+    let currentX = entities[0].x;
+    entities.forEach(entity => {
+      entity.x = currentX;
+      entity.y = minY;
+      currentX += entity.width + 50;
+    });
+
+    entities.forEach(entity => {
+      const el = entityManager.getEntity(entity.id);
+      if (el) {
+        el.data.x = entity.x;
+        el.data.y = entity.y;
+        el.element.style.left = `${entity.x}px`;
+        el.element.style.top = `${entity.y}px`;
+        entityManager.projectManager.updateImage(entity.id, { x: entity.x, y: entity.y });
+      }
+    });
+  }
+
+  distributeVertically() {
+    const entityManager = this.entityManager;
+    const selectedIds = entityManager.getSelectedIds();
+    
+    if (selectedIds.length < 2) return;
+    
+    const entities = selectedIds
+      .map(id => entityManager.getEntity(id))
+      .filter(e => e)
+      .map(e => ({
+        id: e.data.id,
+        x: e.data.x,
+        y: e.data.y,
+        width: (e.element.naturalWidth || e.element.offsetWidth) * e.data.scale,
+        height: (e.element.naturalHeight || e.element.offsetHeight) * e.data.scale
+      }));
+
+    if (entities.length < 2) return;
+
+    const minX = Math.min(...entities.map(e => e.x));
+    entities.sort((a, b) => a.y - b.y);
+
+    let currentY = entities[0].y;
+    entities.forEach(entity => {
+      entity.x = minX;
+      entity.y = currentY;
+      currentY += entity.height + 50;
+    });
+
+    entities.forEach(entity => {
+      const el = entityManager.getEntity(entity.id);
+      if (el) {
+        el.data.x = entity.x;
+        el.data.y = entity.y;
+        el.element.style.left = `${entity.x}px`;
+        el.element.style.top = `${entity.y}px`;
+        entityManager.projectManager.updateImage(entity.id, { x: entity.x, y: entity.y });
+      }
+    });
+  }
+
   repositionImagesInFrames() {
     const config = this.projectManager.getConfig();
     config.images.forEach(img => {
@@ -1705,6 +1853,18 @@ document.addEventListener('DOMContentLoaded', () => {
       window.app.bringSelectedFrameToFront();
     } else if (action === 'lock-frame') {
       window.app.toggleFrameLock();
+    } else if (action === 'align-left') {
+      window.app.alignSelected('left');
+    } else if (action === 'align-right') {
+      window.app.alignSelected('right');
+    } else if (action === 'align-top') {
+      window.app.alignSelected('top');
+    } else if (action === 'align-bottom') {
+      window.app.alignSelected('bottom');
+    } else if (action === 'distribute-horizontally') {
+      window.app.distributeHorizontally();
+    } else if (action === 'distribute-vertically') {
+      window.app.distributeVertically();
     }
   });
 

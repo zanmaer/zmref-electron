@@ -65,40 +65,47 @@ function createWindow() {
         }
       },
       {
-        label: 'Open Project',
-        click: () => {
-          mainWindow.webContents.send('context-menu-action', 'open-project');
-        }
-      },
-      { type: 'separator' },
-      {
-        label: 'Create Frame',
-        click: () => {
-          mainWindow.webContents.send('context-menu-action', 'create-frame');
-        }
-      },
-      {
-        label: 'Delete Frame',
-        click: () => {
-          mainWindow.webContents.send('context-menu-action', 'delete-frame');
-        }
-      },
-      {
-        label: 'Clear Frame',
-        click: () => {
-          mainWindow.webContents.send('context-menu-action', 'clear-frame');
-        }
-      },
-      {
         label: 'Bring to Front',
         click: () => {
           mainWindow.webContents.send('context-menu-action', 'bring-to-front');
         }
       },
+      { type: 'separator' },
       {
-        label: 'Lock Frame',
+        label: 'Align Left',
         click: () => {
-          mainWindow.webContents.send('context-menu-action', 'lock-frame');
+          mainWindow.webContents.send('context-menu-action', 'align-left');
+        }
+      },
+      {
+        label: 'Align Right',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'align-right');
+        }
+      },
+      {
+        label: 'Align Top',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'align-top');
+        }
+      },
+      {
+        label: 'Align Bottom',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'align-bottom');
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Distribute Horizontally',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'distribute-horizontally');
+        }
+      },
+      {
+        label: 'Distribute Vertically',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'distribute-vertically');
         }
       },
       { type: 'separator' },
