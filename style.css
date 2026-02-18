@@ -369,9 +369,6 @@ html, body {
   cursor: text;
   z-index: 5;
   min-width: 100px;
-  max-width: 500px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   outline: none;
   transition: background 0.2s, box-shadow 0.2s;
