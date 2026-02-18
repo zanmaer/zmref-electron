@@ -1,0 +1,16 @@
+{
+  "name": "zmref",
+  "version": "1.0.0",
+  "description": "Minimalist Reference Tool - Electron desktop application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.3.3"
+  },
+  "dependencies": {}
+}
