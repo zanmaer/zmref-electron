@@ -64,6 +64,32 @@ function createWindow() {
         }
       },
       {
+        label: 'Create Frame',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'create-frame');
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Delete Frame',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'delete-frame');
+        }
+      },
+      {
+        label: 'Clear Frame',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'clear-frame');
+        }
+      },
+      {
+        label: 'Lock Frame',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'lock-frame');
+        }
+      },
+      { type: 'separator' },
+      {
         label: 'Bring to Front',
         click: () => {
           mainWindow.webContents.send('context-menu-action', 'bring-to-front');

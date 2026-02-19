@@ -358,7 +358,7 @@ html, body {
 
 .frame-label {
   position: absolute;
-  top: -60px;
+  top: -200px;
   left: 0;
   color: var(--text-primary);
   font-size: 150px;

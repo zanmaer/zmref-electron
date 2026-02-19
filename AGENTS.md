@@ -9,39 +9,36 @@ npm start      # Start Electron app
 npm run build  # Production build (requires electron-builder)
 ```
 
-### Lint & Test Commands
-
-```bash
-# Lint (requires eslint: npm i -D eslint)
-npm run lint
-npm run lint -- --fix
-
-# Test (requires jest: npm i -D jest)
-npm test                    # Run all tests
-npm test -- --watch        # Watch mode
-npm test -- --testPathPattern=filename  # Single test file
-```
-
 ---
 
 ## Code Style
 
 ### General Rules
-- **Language**: Vanilla JS (ES6+), no frameworks
+- **Language**: Vanilla JavaScript (ES6+), no frameworks
 - **Indentation**: 2 spaces
 - **Quotes**: Single quotes preferred
 - **Semicolons**: Always use semicolons
 - **Line length**: Max 100 characters
+- **Files**: UTF-8 encoding
 
 ### Naming Conventions
 | Type | Convention | Example |
 |------|------------|---------|
-| Classes | PascalCase | `Camera`, `FrameManager` |
-| Methods/variables | camelCase | `this.cx`, `saveConfig()` |
-| Constants | UPPER_SNAKE_CASE | `IMAGE_EXTENSIONS` |
-| Private methods | prefix underscore | `_handleResize()` |
+| Classes | PascalCase | `Camera`, `FrameManager`, `HistoryManager` |
+| Methods/variables | camelCase | `this.cx`, `saveConfig()`, `_isExecuting` |
+| Constants | UPPER_SNAKE_CASE | `IMAGE_EXTENSIONS`, `HISTORY_MAX_SIZE` |
+| Private methods | prefix underscore | `_handleResize()`, `_createElement()` |
 
-### ES6 Class Structure
+### File Structure
+```
+main.js      # Electron main: IPC, window, menus
+preload.js   # contextBridge API to renderer
+renderer.js  # All app classes (App, Camera, Managers, Commands)
+index.html   # DOM structure
+style.css    # Styles with CSS variables
+```
+
+### ES6 Class Patterns
 ```javascript
 class MyClass {
   constructor(param) {
@@ -54,26 +51,38 @@ class MyClass {
 }
 ```
 
+### Error Handling
+- Always use try/catch in async IPC handlers
+- Return `{ success: true, data: result }` on success
+- Return `{ success: false, error: error.message }` on failure
+- Log errors with prefix: `[CLASSNAME] methodName error: message`
+
 ---
 
 ## Architecture
 
-```
-main.js      # Electron main: IPC, window, menus
-preload.js   # contextBridge API to renderer
-renderer.js  # App, Camera, ProjectManager, EntityManager, FrameManager
-index.html   # DOM structure
-style.css    # Styles with CSS variables
-```
-
 ### Key Classes (renderer.js)
 | Class | Responsibility |
 |-------|----------------|
+| **App** | Event coordination, UI state, keyboard shortcuts |
 | **Camera** | Pan/zoom math, coordinate transforms |
 | **ProjectManager** | File I/O, config loading/saving |
 | **EntityManager** | Image lifecycle: create, drag, delete, z-order |
-| **FrameManager** | Frame creation, resize (8 handles), lock |
-| **App** | Event coordination, UI state, shortcuts |
+| **FrameManager** | Frame creation, resize handles, lock state |
+| **HistoryManager** | Undo/redo stacks, command execution |
+
+### Command Pattern (Undo/Redo)
+| Class | Purpose |
+|-------|---------|
+| `CommandGroup` | Groups multiple commands as single undo |
+| `AddImageCommand` | Add image to project |
+| `DeleteImageCommand` | Remove image from project |
+| `MoveImageCommand` | Move single image position |
+| `MoveImagesCommand` | Move multiple images (grouped) |
+| `ScaleImageCommand` | Resize image |
+| `AddFrameCommand` | Create new frame |
+| `MoveFrameCommand` | Move frame position |
+| `ResizeFrameCommand` | Resize frame dimensions |
 
 ---
 
@@ -108,68 +117,28 @@ contextBridge.exposeInMainWorld('api', {
 | `dialog:openDirectory` | renderer→main | Open folder picker |
 | `dialog:openFiles` | renderer→main | Open file picker |
 | `fs:readFile`, `fs:writeFile`, `fs:deleteFile` | renderer→main | File I/O |
-| `path:join`, `path:basename` | renderer→main | Path utilities |
 | `window:minimize/maximize/close` | renderer→main | Window controls |
-| `recent-projects:get/add/remove` | renderer→main | Recent projects |
+| `recent-projects:*` | renderer→main | Recent projects management |
 | `files-dropped` | main→renderer | File drop notification |
-
----
-
-## Common Patterns
-
-### Debounced Save
-```javascript
-saveConfig() {
-  if (this.saveTimeout) return;
-  this.saveTimeout = setTimeout(async () => {
-    try {
-      await window.api.fs.writeFile(this.configPath, JSON.stringify(this.config, null, 2));
-    } catch (error) {
-      console.error('[ProjectManager] Save failed:', error.message);
-    } finally {
-      this.saveTimeout = null;
-    }
-  }, 500);
-}
-```
-
-### Zoom-to-Cursor
-```javascript
-zoomToPoint(delta, screenX, screenY, viewportRect) {
-  const mouseX = screenX - viewportRect.left;
-  const mouseY = screenY - viewportRect.top;
-  const zoomFactor = delta > 0 ? 0.9 : 1.1;
-  const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * zoomFactor));
-  if (newZoom === this.zoom) return;
-  const worldX = (mouseX - this.cx) / this.zoom;
-  const worldY = (mouseY - this.cy) / this.zoom;
-  this.zoom = newZoom;
-  this.cx = mouseX - worldX * this.zoom;
-  this.cy = mouseY - worldY * this.zoom;
-}
-```
 
 ---
 
 ## Security
 
-- **Always**: `contextIsolation: true`
-- **Never**: `nodeIntegration: true`
-- **Validate**: All IPC inputs in main process
+- **Always**: `contextIsolation: true`, `nodeIntegration: false`
+- **Never**: Enable `nodeIntegration` in renderer
+- **Validate**: All IPC inputs in main process before use
 - **WebSecurity**: `false` only for `file://` protocol
 
 ---
 
-## Debugging
+## Logging Prefix
 
-### Logging Prefix
 | Prefix | File |
 |--------|------|
 | `[MAIN]` | main.js |
 | `[RENDERER]` | renderer.js |
-| `[Camera]`, `[ProjectManager]` | Specific classes |
-
-### DevTools: `Ctrl+Shift+I`
+| `[Camera]`, `[ProjectManager]` | Specific class in renderer.js |
 
 ---
 
@@ -181,6 +150,8 @@ zoomToPoint(delta, screenX, screenY, viewportRect) {
 | Delete/Backspace | Delete selected |
 | Ctrl+0 | Reset zoom 100% |
 | Ctrl+A | Select all |
+| Ctrl+Z | Undo |
+| Ctrl+Shift+Z | Redo |
 | Escape | Clear selection |
 | Mouse wheel | Zoom at cursor |
 | Right-click | Context menu |
