@@ -46,6 +46,10 @@ contextBridge.exposeInMainWorld('api', {
     validate: () => ipcRenderer.invoke('recent-projects:validate'),
     remove: (projectPath) => ipcRenderer.invoke('recent-projects:remove', projectPath)
   },
+
+  shell: {
+    showItemInFolder: (filePath) => ipcRenderer.invoke('shell:showItemInFolder', filePath)
+  },
   
   onFilesDropped: (callback) => {
     ipcRenderer.on('files-dropped', (event, paths) => {

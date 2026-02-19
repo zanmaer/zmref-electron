@@ -385,7 +385,6 @@ class EntityManager {
     };
 
     const onContextMenu = (e) => {
-      e.preventDefault();
       e.stopPropagation();
     };
 
@@ -1392,6 +1391,32 @@ class App {
     this._applyEntityPositions(entities);
   }
 
+  async _openInExplorer() {
+    const selectedIds = this.entityManager.getSelectedIds();
+    if (selectedIds.length !== 1) {
+      console.warn('[App] _openInExplorer: No single image selected, count:', selectedIds.length);
+      return;
+    }
+
+    const entity = this.entityManager.getEntity(selectedIds[0]);
+    if (!entity || !entity.data || !entity.data.name) {
+      console.warn('[App] _openInExplorer: Entity has no valid data');
+      return;
+    }
+
+    const projectPath = this.projectManager.getProjectPath();
+    if (!projectPath) {
+      console.warn('[App] _openInExplorer: No project path');
+      return;
+    }
+
+    const filesDir = await window.api.fs.getFilesDir(projectPath);
+    const fullPath = await window.api.path.join(filesDir, entity.data.name);
+
+    console.log('[App] _openInExplorer:', fullPath);
+    await window.api.shell.showItemInFolder(fullPath);
+  }
+
   _applyEntityPositions(entities) {
     entities.forEach(entity => {
       const el = this.entityManager.getEntity(entity.id);
@@ -1861,7 +1886,8 @@ document.addEventListener('DOMContentLoaded', () => {
       'align-bottom': () => window.app._alignSelected('bottom'),
       'distribute-horizontally': () => window.app._distributeHorizontally(),
       'distribute-vertically': () => window.app._distributeVertically(),
-      'distribute-to-grid': () => window.app._distributeToGrid()
+      'distribute-to-grid': () => window.app._distributeToGrid(),
+      'open-in-explorer': () => window.app._openInExplorer()
     };
 
     const handler = actionMap[action];

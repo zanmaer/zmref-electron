@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, webUtils, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, webUtils, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -56,11 +56,17 @@ function createWindow() {
   });
 
   mainWindow.webContents.on('context-menu', (event, params) => {
-    const contextMenu = Menu.buildFromTemplate([
+    const template = [
       {
         label: 'Add Images',
         click: () => {
           mainWindow.webContents.send('context-menu-action', 'add-images');
+        }
+      },
+      {
+        label: 'Open in Explorer',
+        click: () => {
+          mainWindow.webContents.send('context-menu-action', 'open-in-explorer');
         }
       },
       {
@@ -86,13 +92,6 @@ function createWindow() {
         label: 'Lock Frame',
         click: () => {
           mainWindow.webContents.send('context-menu-action', 'lock-frame');
-        }
-      },
-      { type: 'separator' },
-      {
-        label: 'Bring to Front',
-        click: () => {
-          mainWindow.webContents.send('context-menu-action', 'bring-to-front');
         }
       },
       { type: 'separator' },
@@ -138,15 +137,10 @@ function createWindow() {
         click: () => {
           mainWindow.webContents.send('context-menu-action', 'distribute-to-grid');
         }
-      },
-      { type: 'separator' },
-      {
-        label: 'Reset Zoom',
-        click: () => {
-          mainWindow.webContents.send('context-menu-action', 'reset-zoom');
-        }
       }
-    ]);
+    ];
+
+    const contextMenu = Menu.buildFromTemplate(template);
     contextMenu.popup({ window: mainWindow });
   });
 
@@ -465,6 +459,19 @@ ipcMain.handle('recent-projects:remove', async (event, projectPath) => {
     return { success: true };
   } catch (error) {
     console.error('[IPC] recent-projects:remove error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('shell:showItemInFolder', async (event, filePath) => {
+  if (!isValidPath(filePath)) {
+    return { success: false, error: 'Invalid file path' };
+  }
+  try {
+    shell.showItemInFolder(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error('[IPC] shell:showItemInFolder error:', error.message);
     return { success: false, error: error.message };
   }
 });
