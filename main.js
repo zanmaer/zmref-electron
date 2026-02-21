@@ -51,10 +51,6 @@ function createWindow() {
     }
   });
 
-  mainWindow.on('drop-files', (event, paths) => {
-    mainWindow.webContents.send('files-dropped', paths);
-  });
-
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

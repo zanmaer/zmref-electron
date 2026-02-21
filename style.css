@@ -53,6 +53,10 @@ html, body {
   cursor: default;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 #viewport.panning {
@@ -69,10 +73,19 @@ html, body {
   height: 5000px;
   transform-origin: 0 0;
   contain: layout style;
+  will-change: transform;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 .canvas-image {
   position: absolute;
+  display: block;
+  vertical-align: top;
   cursor: move;
   user-select: none;
   -webkit-user-select: none;
@@ -80,6 +93,12 @@ html, body {
   user-drag: none;
   -moz-user-drag: none;
   transform-origin: center center;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 .canvas-image.is-dragging {
@@ -99,6 +118,10 @@ html, body {
   cursor: move;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .frame-container:hover {

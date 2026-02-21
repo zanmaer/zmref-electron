@@ -31,7 +31,7 @@ class Camera {
   }
 
   applyToElement(element) {
-    element.style.transform = `translate(${this.cx}px, ${this.cy}px) scale(${this.zoom})`;
+    element.style.transform = `translate(${Math.round(this.cx)}px, ${Math.round(this.cy)}px) scale(${this.zoom})`;
   }
 
   screenToCanvas(screenX, screenY) {
@@ -59,8 +59,8 @@ class Camera {
     const worldY = (mouseY - this.cy) / this.zoom;
 
     this.zoom = newZoom;
-    this.cx = mouseX - worldX * this.zoom;
-    this.cy = mouseY - worldY * this.zoom;
+    this.cx = Math.round(mouseX - worldX * this.zoom);
+    this.cy = Math.round(mouseY - worldY * this.zoom);
   }
 
   reset() {
@@ -140,6 +140,8 @@ class ProjectManager {
       if (result.success) {
         try {
           this.config = JSON.parse(result.data);
+          if (!this.config.canvas) this.config.canvas = { cx: 0, cy: 0, zoom: CONSTANTS.DEFAULT_ZOOM };
+          if (!this.config.images) this.config.images = [];
           if (!this.config.frames) this.config.frames = [];
         } catch (e) {
           console.error('[ProjectManager] Failed to parse config:', e);
@@ -303,18 +305,21 @@ class EntityManager {
   }
 
   _getEntityDimensions(entity) {
-    if (this._dimensionCache.has(entity.data.id)) {
-      return this._dimensionCache.get(entity.data.id);
+    const data = entity.data || entity;
+    const element = entity.element || entity;
+
+    if (this._dimensionCache.has(data.id)) {
+      return this._dimensionCache.get(data.id);
     }
 
-    const naturalWidth = entity.element.naturalWidth || entity.element.offsetWidth;
-    const naturalHeight = entity.element.naturalHeight || entity.element.offsetHeight;
+    const naturalWidth = element.naturalWidth || element.offsetWidth;
+    const naturalHeight = element.naturalHeight || element.offsetHeight;
     const dims = {
-      width: naturalWidth * entity.data.scale,
-      height: naturalHeight * entity.data.scale
+      width: naturalWidth * (data.scale || 1),
+      height: naturalHeight * (data.scale || 1)
     };
 
-    this._dimensionCache.set(entity.data.id, dims);
+    this._dimensionCache.set(data.id, dims);
     return dims;
   }
 
@@ -339,8 +344,8 @@ class EntityManager {
     const imageData = {
       id,
       name: uniqueName,
-      x: CONSTANTS.DEFAULT_IMAGE_POSITION.x + Math.random() * CONSTANTS.POSITION_RANDOM_RANGE,
-      y: CONSTANTS.DEFAULT_IMAGE_POSITION.y + Math.random() * CONSTANTS.POSITION_RANDOM_RANGE,
+      x: Math.round(CONSTANTS.DEFAULT_IMAGE_POSITION.x + Math.random() * CONSTANTS.POSITION_RANDOM_RANGE),
+      y: Math.round(CONSTANTS.DEFAULT_IMAGE_POSITION.y + Math.random() * CONSTANTS.POSITION_RANDOM_RANGE),
       scale: 1
     };
 
@@ -362,7 +367,7 @@ class EntityManager {
     const fileURL = await window.api.path.toFileURL(fullPath);
     img.src = fileURL;
 
-    img.style.transform = `translate(${imageData.x}px, ${imageData.y}px) scale(${imageData.scale})`;
+    img.style.transform = `translate(${Math.round(imageData.x)}px, ${Math.round(imageData.y)}px) scale(${imageData.scale})`;
     img.style.zIndex = 10;
 
     this._setupEntityEvents(img, imageData);
@@ -451,8 +456,8 @@ class EntityManager {
       Object.entries(this.dragState.initialPositions).forEach(([id, pos]) => {
         const entity = this.entities.get(id);
         if (entity) {
-          const newX = pos.x + dx;
-          const newY = pos.y + dy;
+          const newX = Math.round(pos.x + dx);
+          const newY = Math.round(pos.y + dy);
           const scale = entity.data.scale || 1;
           entity.element.style.transform = `translate(${newX}px, ${newY}px) scale(${scale})`;
         }
@@ -460,8 +465,8 @@ class EntityManager {
       this.dragState.currentX = dx;
       this.dragState.currentY = dy;
     } else {
-      const newX = this.dragState.offsetX + dx;
-      const newY = this.dragState.offsetY + dy;
+      const newX = Math.round(this.dragState.offsetX + dx);
+      const newY = Math.round(this.dragState.offsetY + dy);
       const scale = this.dragState.imageData.scale || 1;
 
       this.dragState.entity.style.transform = `translate(${newX}px, ${newY}px) scale(${scale})`;
@@ -478,8 +483,8 @@ class EntityManager {
         if (entity) {
           const dx = this.dragState.currentX || 0;
           const dy = this.dragState.currentY || 0;
-          const newX = pos.x + dx;
-          const newY = pos.y + dy;
+          const newX = Math.round(pos.x + dx);
+          const newY = Math.round(pos.y + dy);
 
           entity.element.classList.remove('dragging', 'is-dragging');
           entity.data.x = newX;
@@ -490,8 +495,8 @@ class EntityManager {
     } else if (this.dragState.entity && this.dragState.currentX !== null) {
       const id = this.dragState.entity.dataset.id;
       this.projectManager.updateImage(id, {
-        x: this.dragState.currentX,
-        y: this.dragState.currentY
+        x: Math.round(this.dragState.currentX),
+        y: Math.round(this.dragState.currentY)
       });
       this.dragState.entity.classList.remove('dragging', 'is-dragging');
     }
@@ -687,7 +692,7 @@ class EntityManager {
 
         this.canvas.appendChild(entity.element);
         const scale = entity.data.scale || 1;
-        entity.element.style.transform = `translate(${img.x}px, ${img.y}px) scale(${scale})`;
+        entity.element.style.transform = `translate(${Math.round(img.x)}px, ${Math.round(img.y)}px) scale(${scale})`;
       }
       img.frameId = null;
       this.projectManager.saveConfig();
@@ -934,15 +939,15 @@ class FrameManager {
       newY = this.resizeState.startFrameY + heightChange;
     }
 
-    this.resizeState.frame.style.width = `${newWidth}px`;
-    this.resizeState.frame.style.height = `${newHeight}px`;
-    this.resizeState.frame.style.left = `${newX}px`;
-    this.resizeState.frame.style.top = `${newY}px`;
+    this.resizeState.frame.style.width = `${Math.round(newWidth)}px`;
+    this.resizeState.frame.style.height = `${Math.round(newHeight)}px`;
+    this.resizeState.frame.style.left = `${Math.round(newX)}px`;
+    this.resizeState.frame.style.top = `${Math.round(newY)}px`;
 
-    this.resizeState.currentWidth = newWidth;
-    this.resizeState.currentHeight = newHeight;
-    this.resizeState.currentX = newX;
-    this.resizeState.currentY = newY;
+    this.resizeState.currentWidth = Math.round(newWidth);
+    this.resizeState.currentHeight = Math.round(newHeight);
+    this.resizeState.currentX = Math.round(newX);
+    this.resizeState.currentY = Math.round(newY);
   }
 
   endResize() {
@@ -979,8 +984,8 @@ class FrameManager {
     const dx = (e.clientX - this.dragState.startX) / this.camera.zoom;
     const dy = (e.clientY - this.dragState.startY) / this.camera.zoom;
 
-    const newX = this.dragState.startFrameX + dx;
-    const newY = this.dragState.startFrameY + dy;
+    const newX = Math.round(this.dragState.startFrameX + dx);
+    const newY = Math.round(this.dragState.startFrameY + dy);
 
     this.dragState.frame.style.left = `${newX}px`;
     this.dragState.frame.style.top = `${newY}px`;
@@ -1040,6 +1045,12 @@ class FrameManager {
 
       config.images.forEach(img => {
         if (img.frameId === id) {
+          const entity = this.entityManager.getEntity(img.id);
+          if (entity) {
+            this.canvas.appendChild(entity.element);
+            const scale = entity.data.scale || 1;
+            entity.element.style.transform = `translate(${Math.round(img.x)}px, ${Math.round(img.y)}px) scale(${scale})`;
+          }
           img.frameId = null;
           this.projectManager.updateImage(img.id, { frameId: null });
         }
@@ -1403,13 +1414,13 @@ class App {
       let newY = entity.data.y;
 
       if (direction === 'left') {
-        newX = bounds.minX;
+        newX = Math.round(bounds.minX);
       } else if (direction === 'right') {
-        newX = bounds.maxX - dims.width;
+        newX = Math.round(bounds.maxX - dims.width);
       } else if (direction === 'top') {
-        newY = bounds.minY;
+        newY = Math.round(bounds.minY);
       } else if (direction === 'bottom') {
-        newY = bounds.maxY - dims.height;
+        newY = Math.round(bounds.maxY - dims.height);
       }
 
       entity.data.x = newX;
@@ -1531,10 +1542,12 @@ class App {
     entities.forEach(entity => {
       const el = this.entityManager.getEntity(entity.id);
       if (el) {
-        el.data.x = entity.x;
-        el.data.y = entity.y;
+        const roundedX = Math.round(entity.x);
+        const roundedY = Math.round(entity.y);
+        el.data.x = roundedX;
+        el.data.y = roundedY;
         const elScale = el.data.scale || 1;
-        el.element.style.transform = `translate(${entity.x}px, ${entity.y}px) scale(${elScale})`;
+        el.element.style.transform = `translate(${roundedX}px, ${roundedY}px) scale(${elScale})`;
         this.projectManager.updateImage(entity.id, { x: entity.x, y: entity.y });
       }
     });
@@ -1552,7 +1565,7 @@ class App {
             const contentEl = frameEl.querySelector('.frame-content');
             contentEl.appendChild(entity.element);
             const scale = entity.data.scale || 1;
-            entity.element.style.transform = `translate(${img.x - frame.data.x}px, ${img.y - frame.data.y}px) scale(${scale})`;
+            entity.element.style.transform = `translate(${Math.round(img.x - frame.data.x)}px, ${Math.round(img.y - frame.data.y)}px) scale(${scale})`;
           }
         }
       }
@@ -1672,18 +1685,18 @@ class App {
       this.selectionState.rectElement.style.display = 'none';
     }
 
-    const left = Math.min(this.selectionState.startX, this.selectionState.currentX);
-    const top = Math.min(this.selectionState.startY, this.selectionState.currentY);
-    const width = Math.abs(this.selectionState.currentX - this.selectionState.startX);
-    const height = Math.abs(this.selectionState.currentY - this.selectionState.startY);
+    const screenLeft = Math.min(this.selectionState.startX, this.selectionState.currentX);
+    const screenTop = Math.min(this.selectionState.startY, this.selectionState.currentY);
+    const screenWidth = Math.abs(this.selectionState.currentX - this.selectionState.startX);
+    const screenHeight = Math.abs(this.selectionState.currentY - this.selectionState.startY);
 
-    if (width > CONSTANTS.SELECTION_MIN_SIZE || height > CONSTANTS.SELECTION_MIN_SIZE) {
+    if (screenWidth > CONSTANTS.SELECTION_MIN_SIZE || screenHeight > CONSTANTS.SELECTION_MIN_SIZE) {
       const viewportRect = this.viewport.getBoundingClientRect();
       const selRect = {
-        x: (left - viewportRect.left - this.camera.cx) / this.camera.zoom,
-        y: (top - viewportRect.top - this.camera.cy) / this.camera.zoom,
-        width: width / this.camera.zoom,
-        height: height / this.camera.zoom
+        x: (screenLeft - viewportRect.left - this.camera.cx) / this.camera.zoom,
+        y: (screenTop - viewportRect.top - this.camera.cy) / this.camera.zoom,
+        width: screenWidth / this.camera.zoom,
+        height: screenHeight / this.camera.zoom
       };
 
       const selectedIds = this.entityManager.getEntitiesInRect(selRect);
@@ -1796,7 +1809,8 @@ class App {
       for (const file of files) {
         const ext = '.' + file.name.split('.').pop().toLowerCase();
         if (CONSTANTS.IMAGE_EXTENSIONS.includes(ext)) {
-          const imageData = await this.entityManager.addImageFromFile(file.path);
+          const filePath = await window.api.webUtils.getPathForFile(file);
+          const imageData = await this.entityManager.addImageFromFile(filePath);
           if (frameEl && imageData) {
             const frameId = frameEl.dataset.id;
             const frame = this.frameManager.getFrame(frameId);
@@ -1839,7 +1853,7 @@ class App {
     contentEl.appendChild(entity.element);
 
     const scale = entity.data.scale || 1;
-    entity.element.style.transform = `translate(${canvasX - frame.data.x}px, ${canvasY - frame.data.y}px) scale(${scale})`;
+    entity.element.style.transform = `translate(${Math.round(canvasX - frame.data.x)}px, ${Math.round(canvasY - frame.data.y)}px) scale(${scale})`;
 
     this.entityManager.attachImageToFrame(imageId, frameId, canvasX, canvasY);
   }
@@ -1857,8 +1871,8 @@ class App {
     const dx = e.clientX - this.panState.startX;
     const dy = e.clientY - this.panState.startY;
 
-    this.camera.cx = this.panState.startCx + dx;
-    this.camera.cy = this.panState.startCy + dy;
+    this.camera.cx = Math.round(this.panState.startCx + dx);
+    this.camera.cy = Math.round(this.panState.startCy + dy);
 
     this._updateCanvasTransform();
   }
@@ -1911,7 +1925,7 @@ class App {
             if (entity) {
               this.canvas.appendChild(entity.element);
               const scale = entity.data.scale || 1;
-              entity.element.style.transform = `translate(${img.x}px, ${img.y}px) scale(${scale})`;
+              entity.element.style.transform = `translate(${Math.round(img.x)}px, ${Math.round(img.y)}px) scale(${scale})`;
             }
           }
         });
