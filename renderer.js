@@ -144,6 +144,10 @@ class ProjectManager {
   }
 
   async getThumbsDir() {
+    if (!this.projectPath) {
+      console.error('[ProjectManager] projectPath is not set');
+      return '';
+    }
     return await window.api.path.join(this.projectPath, CONSTANTS.THUMBNAIL.DIR_NAME);
   }
 
@@ -1118,7 +1122,7 @@ class FrameManager {
       y: 200,
       width: CONSTANTS.FRAME_DEFAULT_SIZE.width,
       height: CONSTANTS.FRAME_DEFAULT_SIZE.height,
-      zIndex: 100,
+      zIndex: 1,
       locked: false,
       imageIds: []
     };
@@ -1131,7 +1135,7 @@ class FrameManager {
   }
 
   bringToFront(frameEl, frameData) {
-    const maxZ = Math.max(100, ...this.frames.values().map(f => f.data.zIndex || 0));
+    const maxZ = Math.max(1, ...this.frames.values().map(f => f.data.zIndex || 0));
     const newZ = maxZ + 1;
     frameEl.style.zIndex = newZ;
     this.projectManager.updateFrame(frameData.id, { zIndex: newZ });
