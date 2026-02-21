@@ -1098,7 +1098,6 @@ class App {
   constructor() {
     this.viewport = document.getElementById('viewport');
     this.canvas = document.getElementById('canvas');
-    this.gridOverlay = document.getElementById('grid-overlay');
     this.welcomeOverlay = document.getElementById('welcome-overlay');
     this.recentProjectsList = document.getElementById('recent-projects-list');
     this.statusZoom = document.getElementById('status-zoom');
@@ -1872,18 +1871,7 @@ class App {
 
   _updateCanvasTransform() {
     this.camera.applyToElement(this.canvas);
-    this._updateGridOverlay();
     this._updateStatus();
-  }
-
-  _updateGridOverlay() {
-    if (!this.gridOverlay) return;
-    const baseSize = 50;
-    const scaledSize = baseSize * this.camera.zoom;
-    this.gridOverlay.style.backgroundSize = `${scaledSize}px ${scaledSize}px`;
-    const offsetX = this.camera.cx % scaledSize;
-    const offsetY = this.camera.cy % scaledSize;
-    this.gridOverlay.style.backgroundPosition = `${offsetX}px ${offsetY}px`;
   }
 
   _updateStatus() {
