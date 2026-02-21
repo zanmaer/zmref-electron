@@ -387,7 +387,7 @@ ipcMain.handle('window:isMaximized', () => {
 
 const getConfigDir = () => {
   const home = app.getPath('home');
-  return path.join(home, '.config', 'zmboard_electron');
+  return path.join(home, '.config', 'zmref');
 };
 
 const getRecentProjectsPath = () => {

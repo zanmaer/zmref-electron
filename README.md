@@ -1,4 +1,4 @@
-# ZmRef Electron
+# ZmRef
 
 A minimalist reference image viewer and organizer built with Electron.
 

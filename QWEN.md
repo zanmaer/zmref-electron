@@ -1,4 +1,4 @@
-# ZmRef Electron - Project Context
+# ZmRef - Project Context
 
 ## Project Overview
 
@@ -320,6 +320,22 @@ backface-visibility: hidden;
 image-rendering: crisp-edges;
 ```
 
+### Z-Index Layering
+
+Elements are layered using z-index to ensure correct visual stacking:
+
+| Element | Z-Index | Description |
+|---------|---------|-------------|
+| `.frame-container` | `1` | Frames are always below images |
+| `.canvas-image` | `10` | Images appear above frames |
+| `.canvas-text` | `20` | Text labels appear above images |
+| `.frame-label` | `5` | Frame labels (positioned above frame) |
+| `.selection-rect` | `1000` | Selection rectangle (topmost) |
+
+**Note**: Frames use `zIndex: 1` in code to stay below images. The `bringToFront()` function increments from base 1.
+
+---
+
 ### Thumbnail Development
 
 **Adding a new image with thumbnail**:
@@ -338,6 +354,18 @@ if (!thumbResult.success) {
 | `unable to open for write` | Ensure directory exists with `fs.mkdir(dir, { recursive: true })` |
 | Thumbnail not displaying | Check `thumbName` field in config, verify file exists in `thumbs/` |
 | Original opens instead | Verify `thumbName` is set, check `createEntity()` logic |
+| `path argument must be of type string` | Ensure `projectPath` is set before calling `getThumbsDir()` |
+
+### Recent Bug Fixes
+
+**v1.1.0** (Commit `a830bdc`):
+- Fixed thumbnail directory creation error (`unable to open for write`)
+  - Added `fs.mkdir(destDir, { recursive: true })` before `sharp().toFile()`
+  - Added defensive check in `ensureThumbnail()` to create thumbs directory
+- Fixed frames overlapping images
+  - Changed frame default `zIndex` from `100` to `1`
+  - Updated `bringToFront()` to use base z-index of `1`
+  - Added explicit `z-index: 1` to `.frame-container` in CSS
 
 ---
 
